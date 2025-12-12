@@ -148,23 +148,31 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"otp_generation.tasks.all"
-# 	],
-# 	"daily": [
-# 		"otp_generation.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"otp_generation.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"otp_generation.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"otp_generation.tasks.monthly"
-# 	],
-# }
+scheduler_events = {"cron": {"*/10 * * * *": ["otp_generation.otp_generation.tasks.expire_otps"]}}
+
+# OTP Sender Hooks
+# ---------------
+# Register sender functions for OTP delivery
+# Other apps can register their email/SMS sender functions here
+# Example in resk_app/hooks.py:
+# otp_email_sender = ["resk_app.utils.send_otp_email"]
+# otp_sms_sender = ["resk_app.utils.send_otp_sms"]
+#
+# Sender functions should accept:
+# - otp_code: The OTP code to send
+# - email: Email address (for email senders)
+# - phone: Phone number (for SMS senders)
+# - purpose: Purpose of OTP (optional)
+# - **kwargs: Additional arguments
+#
+# Example sender function:
+# def send_otp_email(otp_code, email, purpose=None, **kwargs):
+#     frappe.sendmail(
+#         recipients=[email],
+#         subject=f"Your OTP for {purpose}",
+#         message=f"Your OTP is: {otp_code}"
+#     )
+#     return {"status": "sent"}
 
 # Testing
 # -------
@@ -241,4 +249,3 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-

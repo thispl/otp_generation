@@ -1,0 +1,126 @@
+# Copyright (c) 2025, OTP Generation and contributors
+# For license information, please see license.txt
+
+import secrets
+import string
+
+import frappe
+from frappe import _
+from frappe.model.document import Document
+from frappe.utils import add_to_date, now_datetime
+
+from otp_generation.otp_generation.utils.sender import send_otp
+
+
+class OTP(Document):
+	def validate(self):
+		if not self.expiry:
+			self.set_expiry()
+		self.check_expiry()
+
+	def set_expiry(self):
+		settings = frappe.get_single("OTP Settings")
+		expiry_minutes = settings.expiry_time_minutes or 10
+		self.expiry = add_to_date(now_datetime(), minutes=expiry_minutes)
+
+	def check_expiry(self):
+		if self.expiry and now_datetime() > self.expiry:
+			self.status = "Expired"
+
+
+def generate(email=None, phone=None, purpose=None, user=None, send=True):
+	settings = frappe.get_single("OTP Settings")
+	delivery_method = settings.otp_delivery_type or "Email"
+
+	if delivery_method in ["Email", "Both"] and not email:
+		frappe.throw(_(f"Email is required for {delivery_method} delivery method"))
+
+	if delivery_method in ["SMS", "Both"] and not phone:
+		frappe.throw(_(f"Phone is required for {delivery_method} delivery method"))
+
+	otp_length = settings.otp_length or 6
+	otp_code_type = settings.otp_code_type or "Numeric"
+
+	if otp_code_type == "Numeric":
+		otp_code = str(secrets.randbelow(10**otp_length)).zfill(otp_length)
+	else:
+		characters = string.ascii_lowercase + string.digits
+		otp_code = "".join(secrets.choice(characters) for _ in range(otp_length))
+
+	otp_doc = frappe.get_doc(
+		{
+			"doctype": "OTP",
+			"otp_code": otp_code,
+			"email": email,
+			"phone": phone,
+			"purpose": purpose,
+			"user": user,
+			"delivery_method": delivery_method,
+			"status": "Valid",
+		}
+	)
+
+	otp_doc.insert(ignore_permissions=True)
+
+	send_results = []
+	if send:
+		try:
+			if delivery_method in ["Email", "Both"]:
+				email_result = send_otp(
+					otp_code=otp_code,
+					delivery_method="Email",
+					email=email,
+					phone=phone,
+					otp_name=otp_doc.name,
+				)
+				if email_result:
+					send_results.append(email_result)
+
+			if delivery_method in ["SMS", "Both"]:
+				sms_result = send_otp(
+					otp_code=otp_code, delivery_method="SMS", email=email, phone=phone, otp_name=otp_doc.name
+				)
+				if sms_result:
+					send_results.append(sms_result)
+		except Exception:
+			frappe.log_error(
+				message=f"OTP generated but failed to send: {frappe.get_traceback()}", title="OTP Generation"
+			)
+
+	return {
+		"otp_code": otp_code,
+		"name": otp_doc.name,
+		"sent": len(send_results) > 0,
+		"send_results": send_results,
+	}
+
+
+def verify(otp_code, email=None, phone=None, purpose=None):
+	otp = None
+
+	if email:
+		otp = frappe.db.get_value(
+			"OTP",
+			{"otp_code": otp_code, "email": email, "status": "Valid", "purpose": purpose},
+			["name", "expiry"],
+		)
+	elif phone:
+		otp = frappe.db.get_value(
+			"OTP",
+			{"otp_code": otp_code, "phone": phone, "status": "Valid", "purpose": purpose},
+			["name", "expiry"],
+		)
+
+	if not otp:
+		frappe.throw(_("Invalid OTP"))
+
+	otp_doc = frappe.get_doc("OTP", otp.name)
+	otp_doc.check_expiry()
+
+	if otp_doc.status == "Expired":
+		frappe.throw(_("OTP has expired"))
+
+	otp_doc.status = "Expired"
+	otp_doc.save(ignore_permissions=True)
+
+	return {"valid": True}
