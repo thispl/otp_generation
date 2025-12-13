@@ -148,7 +148,7 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-scheduler_events = {"cron": {"*/10 * * * *": ["otp_generation.otp_generation.tasks.expire_otps"]}}
+scheduler_events = {"cron": {"*/10 * * * *": ["otp_generation.tasks.expire_otps"]}}
 
 # OTP Sender Hooks
 # ---------------

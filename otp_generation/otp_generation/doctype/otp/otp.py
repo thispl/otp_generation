@@ -9,7 +9,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
-from otp_generation.otp_generation.utils.sender import send_otp
+from otp_generation.sender import send_otp
 
 
 class OTP(Document):
