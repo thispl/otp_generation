@@ -2,7 +2,11 @@
 
 A generic, reusable Frappe app for One-Time Password (OTP) generation and verification. Supports Email and SMS delivery methods with flexible configuration.
 
+![otp](https://github.com/user-attachments/assets/cd5da607-8d99-46a1-b512-93af498649be)
+
+
 ## Features
+
 
 - ✅ **Generic & Reusable**: Works with any Frappe app
 - ✅ **Multiple Delivery Methods**: Email, SMS, or Both
